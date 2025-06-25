@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wheel of Life Spinner</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: url("background.jpg.jpg") no-repeat center center fixed;
+      background-size: cover;
+      color: #fff;
+      text-align: center;
+    }
+    h1 {
+      margin-top: 20px;
+      color: #fff;
+      text-shadow: 1px 1px 3px #000;
+    }
+    .wheel-container {
+      position: relative;
+      width: 500px;
+      height: 500px;
+      margin: 0 auto;
+    }
+    canvas#wheelCanvas {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.2);
+      transition: transform 4s ease-out;
+    }
+    #spinButton {
+      padding: 10px 20px;
+      background-color: #27ae60;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 20px 0;
+      font-size: 16px;
+      display: inline-block;
+    }
+    .slider-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 20px auto;
+      max-width: 400px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 10px;
+      border-radius: 10px;
+    }
+    .slider-row label {
+      width: 150px;
+    }
+    .slider-row input[type="range"] {
+      flex: 1;
+      margin: 0 10px;
+    }
+    .value-display {
+      width: 30px;
+    }
+    #wheelChart {
+      max-width: 700px;
+      height: 700px;
+      margin: 0 auto;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🎡 Wheel of Life Spinner</h1>
+<div class="wheel-container">
+  <canvas id="wheelCanvas" width="500" height="500"></canvas>
+  <button id="spinButton" onclick="spinWheel()">Spin the Wheel</button>
+</div>
+
+<div id="ratingArea"></div>
+<canvas id="wheelChart"></canvas>
+
+<audio id="spinSound" src="https://www.soundjay.com/button/beep-07.wav"></audio>
+
+<script>
+const keys = [
+  { name: "Health", color: "#e74c3c", icon: "🧘" },
+  { name: "Career", color: "#f39c12", icon: "💼" },
+  { name: "Finance", color: "#f1c40f", icon: "💰" },
+  { name: "Relationships", color: "#2ecc71", icon: "❤️" },
+  { name: "Personal Growth", color: "#1abc9c", icon: "📚" },
+  { name: "Fun & Recreation", color: "#3498db", icon: "🎉" },
+  { name: "Spirituality", color: "#9b59b6", icon: "🔮" },
+  { name: "Contribution", color: "#34495e", icon: "🤝" }
+];
+
+let remainingKeys = [...keys];
+let ratings = {};
+let spinning = false;
+let currentRotation = 0;
+
+const canvas = document.getElementById("wheelCanvas");
+const ctx = canvas.getContext("2d");
+const spinSound = document.getElementById("spinSound");
+
+function drawWheel() {
+  const radius = canvas.width / 2;
+  const angle = (2 * Math.PI) / remainingKeys.length;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  remainingKeys.forEach((key, i) => {
+    const start = i * angle;
+    const end = start + angle;
+
+    ctx.beginPath();
+    ctx.moveTo(radius, radius);
+    ctx.arc(radius, radius, radius, start, end);
+    ctx.fillStyle = key.color;
+    ctx.fill();
+
+    ctx.save();
+    ctx.translate(radius, radius);
+    ctx.rotate(start + angle / 2);
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#fff";
+    ctx.font = "16px Arial";
+    ctx.fillText(`${key.icon} ${key.name}`, radius - 10, 5);
+    ctx.restore();
+  });
+}
+
+drawWheel();
+
+document.getElementById("spinButton").style.display = "inline-block";
+
+function spinWheel() {
+  if (spinning || remainingKeys.length === 0) return;
+  spinning = true;
+  spinSound.play();
+  document.getElementById("spinButton").style.display = "none";
+
+  const anglePerKey = 360 / remainingKeys.length;
+  const selectedIndex = Math.floor(Math.random() * remainingKeys.length);
+  const targetAngle = 360 - (selectedIndex * anglePerKey + anglePerKey / 2);
+  const extraSpins = 5 * 360;
+  const totalRotation = extraSpins + targetAngle;
+
+  currentRotation += totalRotation;
+  canvas.style.transition = "transform 4s ease-out";
+  canvas.style.transform = `rotate(${currentRotation}deg)`;
+
+  setTimeout(() => {
+    canvas.style.transition = "none";
+    canvas.style.transform = `rotate(${currentRotation % 360}deg)`;
+    spinning = false;
+
+    const finalAngle = (currentRotation % 360);
+    const index = Math.floor(((360 - finalAngle + anglePerKey / 2) % 360) / anglePerKey) % remainingKeys.length;
+    const selectedKey = remainingKeys[index];
+
+    showRatingSlider(selectedKey);
+    remainingKeys.splice(index, 1);
+    drawWheel();
+  }, 4200);
+}
+
+function showRatingSlider(key) {
+  const ratingArea = document.getElementById("ratingArea");
+  ratingArea.innerHTML = `
+    <div class="slider-row">
+      <label>${key.icon} ${key.name}</label>
+      <input type="range" min="0" max="10" value="0" oninput="document.getElementById('ratingValue').innerText = this.value" id="ratingInput">
+      <span class="value-display" id="ratingValue">0</span>
+    </div>
+    <button onclick="submitRating('${key.name}')">Submit Rating</button>
+  `;
+}
+
+function submitRating(keyName) {
+  const value = document.getElementById("ratingInput").value;
+  ratings[keyName] = parseInt(value);
+  document.getElementById("ratingArea").innerHTML = "";
+
+  if (Object.keys(ratings).length === keys.length) {
+    showResultChart();
+  } else {
+    setTimeout(() => spinWheel(), 300);
+  }
+}
+
+function showResultChart() {
+  const ctx = document.getElementById("wheelChart").getContext("2d");
+  const data = keys.map(k => ratings[k.name] || 0);
+  const labels = keys.map(k => k.name);
+  const backgroundColors = keys.map(k => k.color);
+
+  new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: data,
+        backgroundColor: backgroundColors
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'bottom'
+        },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.label}: ${ctx.parsed}`
+          }
+        },
+        datalabels: {
+          color: '#fff',
+          formatter: (value, ctx) => `${ctx.chart.data.labels[ctx.dataIndex]}: ${value}`,
+          font: {
+            weight: 'bold',
+            size: 14
+          },
+          anchor: 'center',
+          align: 'center'
+        }
+      }
+    },
+    plugins: [ChartDataLabels]
+  });
+}
+</script>
+
+</body>
+</html>
